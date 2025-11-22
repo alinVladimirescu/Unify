@@ -7,8 +7,8 @@ import os
 
 app = FastAPI()
 
-WATSONX_API_KEY = "D74HUbqJBigx4hUz2QHJISQCXPFFbHN6jk0mWpYCswJh"
-WATSONX_PROJECT_ID = "6fd95f57-1729-42ef-acd9-8021d6f25da0"
+WATSONX_API_KEY = "api-key-placeholder"
+WATSONX_PROJECT_ID = "project-id-placeholder"
 WATSONX_URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
 
 
