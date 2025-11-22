@@ -1,0 +1,154 @@
+openapi: 3.0.0
+
+info:
+  title: "Employee Course Recommender - Simple Version"
+  description: "Accepts employee data as JSON array and recommends courses"
+  version: "3.0.0"
+
+servers:
+  - url: https://folly-uninfusing-zaire.ngrok-free.dev
+
+paths:
+  
+  /process-employees:
+    post:
+      summary: "Process employees and recommend courses"
+      operationId: "processEmployees"
+      description: "Send employee data as JSON array. AI will predict skills and recommend courses."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employees
+              properties:
+                employees:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - employee_id
+                      - employee_name
+                      - seniority_level
+                      - position
+                    properties:
+                      employee_id:
+                        type: string
+                        example: "EMP001"
+                      employee_name:
+                        type: string
+                        example: "Sarah Johnson"
+                      seniority_level:
+                        type: string
+                        example: "Senior"
+                      position:
+                        type: string
+                        example: "Software Engineer"
+            example:
+              employees:
+                - employee_id: "EMP001"
+                  employee_name: "Sarah Johnson"
+                  seniority_level: "Senior"
+                  position: "Software Engineer"
+                - employee_id: "EMP002"
+                  employee_name: "Michael Chen"
+                  seniority_level: "Mid-Level"
+                  position: "DevOps Engineer"
+      responses:
+        '200':
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_employees:
+                    type: integer
+                  employees:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        employee_id:
+                          type: string
+                        employee_name:
+                          type: string
+                        position:
+                          type: string
+                        seniority_level:
+                          type: string
+                        predicted_skills:
+                          type: array
+                          items:
+                            type: string
+                        recommended_courses:
+                          type: array
+                          items:
+                            type: object
+
+  /predict-skills:
+    post:
+      summary: "Predict skills for one employee"
+      operationId: "predictSkills"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - position
+                - seniority_level
+              properties:
+                employee_name:
+                  type: string
+                position:
+                  type: string
+                seniority_level:
+                  type: string
+      responses:
+        '200':
+          description: "Skills predicted"
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /recommend-courses:
+    post:
+      summary: "Recommend courses for skills"
+      operationId: "recommendCourses"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - skills
+              properties:
+                skills:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: "Courses recommended"
+
+  /courses:
+    get:
+      summary: "Get all courses"
+      operationId: "getCourses"
+      responses:
+        '200':
+          description: "Course list"
+
+  /:
+    get:
+      summary: "Health check"
+      operationId: "healthCheck"
+      responses:
+        '200':
+          description: "API is healthy"
