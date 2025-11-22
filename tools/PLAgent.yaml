@@ -1,0 +1,132 @@
+openapi: 3.0.0
+
+info:
+  title: "P&L Strategic Advisor"
+  description: "Analyzes Profit & Loss data to recommend features to keep or ditch."
+  version: "5.0.0"
+
+servers:
+  - url: https://folly-uninfusing-zaire.ngrok-free.dev
+
+paths:
+  /analyze-pnl:
+    post:
+      summary: "Analyze P&L Data"
+      operationId: "analyzePnL"
+      description: "Analyzes financial data for product features and provides keep/ditch recommendations."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - features
+              properties:
+                features:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - feature
+                      - revenue
+                      - cost
+                      - net_profit
+                    properties:
+                      feature:
+                        type: string
+                        example: "AI Analytics Module"
+                      revenue:
+                        type: number
+                        example: 150000
+                      cost:
+                        type: number
+                        example: 45000
+                      net_profit:
+                        type: number
+                        example: 105000
+            example:
+              features:
+                - feature: "AI Analytics Module"
+                  revenue: 150000
+                  cost: 45000
+                  net_profit: 105000
+                - feature: "Legacy Reporting Tool"
+                  revenue: 25000
+                  cost: 32000
+                  net_profit: -7000
+                - feature: "Cloud Storage Add-on"
+                  revenue: 80000
+                  cost: 12000
+                  net_profit: 68000
+                - feature: "On-Premise Connector"
+                  revenue: 15000
+                  cost: 28000
+                  net_profit: -13000
+                - feature: "Premium Support Tier"
+                  revenue: 95000
+                  cost: 40000
+                  net_profit: 55000
+                - feature: "Custom Integrations"
+                  revenue: 30000
+                  cost: 29000
+                  net_profit: 1000
+      responses:
+        '200':
+          description: "Analysis Successful"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PnLAnalysisResponse"
+        '400':
+          description: "Invalid Request"
+        '500':
+          description: "Server Error"
+          
+  /:
+    get:
+      summary: "Health check"
+      operationId: "healthCheck"
+      responses:
+        '200':
+          description: "API is healthy"
+
+components:
+  schemas:
+    PnLAnalysisResponse:
+      type: object
+      required:
+        - executive_summary
+        - features_to_keep
+        - features_to_ditch
+      properties:
+        executive_summary:
+          type: string
+        features_to_keep:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeatureAdvice"
+        features_to_ditch:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeatureAdvice"
+        raw_ai_response:
+          type: string
+          
+    FeatureAdvice:
+      type: object
+      required:
+        - feature_name
+        - status
+        - financial_metric
+        - reason
+      properties:
+        feature_name:
+          type: string
+        status:
+          type: string
+          enum: [Keep, Ditch, Review]
+        financial_metric:
+          type: string
+        reason:
+          type: string
