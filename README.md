@@ -1,4 +1,4 @@
-# IBM Hackathon - M&A Integration Automation Platform
+# Unify - M&A Integration Automation Platform
 
 An AI-powered platform that automates critical M&A (Mergers & Acquisitions) integration tasks using IBM watsonx.ai, watsonx Orchestrate, and intelligent agent orchestration. The platform includes four specialized agents that handle organizational restructuring, employee onboarding, tech stack harmonization, and financial analysis.
 
