@@ -1,21 +1,26 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from dotenv import load_dotenv
 import os
 import json
 import requests
 import uvicorn
 
+# Load environment variables first
+load_dotenv()
+
+# Define the standalone app
 app = FastAPI(
     title="HR Strategic Restructuring Agent",
     version="3.0.0",
     description="Calculates weighted scores and generates strategic reports using 3-shot learning."
 )
-load_dotenv()
 
-# Add CORS middleware to handle cross-origin requests
+# Add CORS middleware (Required for standalone testing)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,27 +29,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- CONFIGURATION ---
-# IMPORTANT: Replace these with your actual IBM Cloud Credentials
+# --- DEBUGGING HANDLER ---
+# This prints the specific validation error to your console when you get a 422
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    error_details = exc.errors()
+    print(f"\n❌ VALIDATION ERROR CAUGHT: {json.dumps(error_details, indent=2)}\n")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": error_details, "body": exc.body},
+    )
 
-WATSONX_API_KEY = "apikeyplaceholder"
-WATSONX_PROJECT_ID = "projectidplaceholder"
-WATSONX_URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29" 
-MODEL_ID = "ibm/granite-3-8b-instruct"
+# --- CONFIGURATION ---
+WATSONX_API_KEY = os.environ.get("WATSONX_API_KEY")
+WATSONX_PROJECT_ID = os.environ.get("WATSONX_PROJECT_ID")
+WATSONX_URL = os.environ.get("WATSONX_URL")
+MODEL_ID = os.environ.get("MODEL_ID")
 
 # --- DATA MODELS ---
 
 class EmployeeInput(BaseModel):
-    # Using aliases allows the API to accept your CSV headers directly
-    # Allow both string and integer for Employee ID
-    employee_id: Optional[str | int] = Field(None, alias="Employee ID")
-    name: str = Field(..., alias="Name")
+    # Using aliases allows the API to accept your CSV/JSON headers directly
+    employee_id: Optional[Union[str, int]] = Field(None, alias="employee_id")
+    name: str = Field(..., alias="name")
     rating: float = Field(..., description="Performance Rating 0.0-5.0")
-    # Allow both string and integer for talent
-    talent: str | int = Field(..., description="Talent Score (High/Medium/Low or 1-5)")
+    talent: Union[str, int] = Field(..., description="Talent Score (High/Medium/Low or 1-5)")
     studies: str = Field(..., description="Education Level")
-    # This alias maps the JSON key "salary" to the Python variable 'salary'
-    salary: float = Field(..., alias="salary", description="Current Salary")
+    salary: float = Field(..., description="Current Salary")
     job: str = Field(..., description="Job Title")
 
     class Config:
@@ -65,15 +76,22 @@ def get_watsonx_token():
     token_url = "https://iam.cloud.ibm.com/identity/token"
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     data = {"grant_type": "urn:ibm:params:oauth:grant-type:apikey", "apikey": WATSONX_API_KEY}
-    response = requests.post(token_url, headers=headers, data=data, timeout=10)
-    if response.status_code != 200:
-        print(f"Auth Error: {response.text}")
-        raise Exception("Failed to authenticate with IBM Cloud")
-    return response.json()["access_token"]
+    try:
+        response = requests.post(token_url, headers=headers, data=data, timeout=10)
+        if response.status_code != 200:
+            print(f"Auth Error: {response.text}")
+            return None
+        return response.json()["access_token"]
+    except Exception as e:
+        print(f"Auth Connection Error: {e}")
+        return None
 
 def call_watsonx(prompt: str, max_tokens: int = 1500) -> Optional[str]:
     try:
         token = get_watsonx_token()
+        if not token:
+            return "Error: Could not authenticate with IBM Cloud."
+
         headers = {
             "Accept": "application/json", 
             "Content-Type": "application/json", 
@@ -98,12 +116,12 @@ def call_watsonx(prompt: str, max_tokens: int = 1500) -> Optional[str]:
             return result["results"][0]["generated_text"].strip()
         else:
             print(f"WatsonX API Error ({response.status_code}): {response.text}")
-            return None
+            return f"Error from AI Provider: {response.text}"
     except Exception as e:
         print(f"Connection Error: {e}")
         return None
 
-# --- ALGORITHMIC LOGIC (THE PYTHON NODE) ---
+# --- ALGORITHMIC LOGIC ---
 
 def execute_scoring_algorithm(employees: List[EmployeeInput]) -> Dict[str, Any]:
     # 1. Weights
@@ -130,7 +148,6 @@ def execute_scoring_algorithm(employees: List[EmployeeInput]) -> Dict[str, Any]:
         try:
             # Map Text to Score
             talent_str = str(emp.talent).capitalize()
-            # Handle numeric input vs text input
             if talent_str in talent_map:
                 talent_score = talent_map[talent_str]
             elif talent_str in ["1","2","3","4","5"]:
@@ -152,7 +169,8 @@ def execute_scoring_algorithm(employees: List[EmployeeInput]) -> Dict[str, Any]:
                 "final_score": round(final_score, 2),
                 "raw_rating": emp.rating
             })
-        except Exception:
+        except Exception as e:
+            print(f"Skipping employee due to error: {e}")
             continue
 
     # 4. Ranking & Allocation
@@ -178,7 +196,6 @@ def execute_scoring_algorithm(employees: List[EmployeeInput]) -> Dict[str, Any]:
                 "discrepancy": "High Salary / Low Merit"
             })
 
-    # 6. Construct Data Payload
     return {
         "status": "success",
         "statistics": {
@@ -197,11 +214,9 @@ def execute_scoring_algorithm(employees: List[EmployeeInput]) -> Dict[str, Any]:
         "risk_flags": flagged_risks
     }
 
-# --- PROMPT GENERATOR WITH 3-SHOT EXAMPLES ---
+# --- PROMPT GENERATOR ---
 
 def generate_architect_prompt(current_data: Dict) -> str:
-    # We define the examples as a constant string block
-    
     few_shot_examples = """
 Input:
 {
@@ -237,80 +252,7 @@ Headquarters Team:
 Alice Chen
 Marcus Thorne
 Sarah Jenkins
-
----
-
-Input:
-{
-  "status": "success",
-  "statistics": { "total_employees": 4, "average_merit_score": 2.5, "hq_count": 2, "remote_count": 2 },
-  "top_talent_hq": [ { "name": "Priya Patel", "score": 4.5 }, { "name": "John Smith", "score": 3.1 } ],
-  "allocation_summary": { "headquarters_roster": [ "Priya Patel", "John Smith" ], "remote_roster": [ "Gary Oldman", "Linda Free" ] },
-  "risk_flags": [ 
-    { "name": "Gary Oldman", "role": "Partner Track", "salary": 200000.0, "merit_score": 1.5, "discrepancy": "High Salary / Low Merit" },
-    { "name": "Linda Free", "role": "Special Counsel", "salary": 180000.0, "merit_score": 1.2, "discrepancy": "High Salary / Low Merit" }
-  ]
-}
-
-Output:
-Strategic Restructuring Report
-
-1. Executive Summary
-Overview: The team of 4 is underperforming, with a low average merit score of 2.5.
-Allocation: 2 employees qualified for Headquarters; 2 employees are assigned Remote status.
-
-2. Leadership & Top Talent
-Priya Patel (Score: 4.5)
-John Smith (Score: 3.1)
-Insight: Priya is the sole high-performer. John Smith made the HQ cut largely due to lack of competition.
-
-3. Financial & Performance Risk Audit (High Priority)
-This department shows severe cost-to-value misalignment.
-Gary Oldman (Partner Track)
-The Discrepancy: A $200k salary is unjustifiable for a score of 1.5. This represents a major sunk cost.
-Strategic Recommendation: Role De-scoping & Salary Review. His current output does not match the Partner Track criteria.
-Linda Free (Special Counsel)
-The Discrepancy: Earning $180k with the lowest score in the group (1.2).
-Strategic Recommendation: Assess for Redundancy. The gap between cost and value is too wide to bridge via training.
-
-4. Final Roster Visualization
-Headquarters Team:
-Priya Patel
-John Smith
-
----
-
-Input:
-{
-  "status": "success",
-  "statistics": { "total_employees": 3, "average_merit_score": 4.8, "hq_count": 2, "remote_count": 1 },
-  "top_talent_hq": [ { "name": "Diana Prince", "score": 5.0 }, { "name": "Clark Kent", "score": 4.9 } ],
-  "allocation_summary": { "headquarters_roster": [ "Diana Prince", "Clark Kent" ], "remote_roster": [ "Bruce Wayne" ] },
-  "risk_flags": []
-}
-
-Output:
-Strategic Restructuring Report
-
-1. Executive Summary
-Overview: This is an exceptional group. The total staff of 3 has an outstanding average merit score of 4.8.
-Allocation: Due to strict capacity limits, 2 employees are in Headquarters and 1 employee is Remote, despite high performance across the board.
-
-2. Leadership & Top Talent
-Diana Prince (Score: 5.0)
-Clark Kent (Score: 4.9)
-Insight: Both individuals achieved near-perfect scores and are critical assets to the firm.
-
-3. Financial & Performance Risk Audit (High Priority)
-No Risks Identified.
-Observation: All salaries appear commensurate with the high level of merit delivered by this team. No cost-saving actions are required.
-
-4. Final Roster Visualization
-Headquarters Team:
-Diana Prince
-Clark Kent
 """
-
     current_json = json.dumps(current_data)
     
     return f"""
@@ -349,14 +291,13 @@ async def generate_strategy(request: RestructuringRequest):
         # 1. Run the Python Node (The Math)
         algo_results = execute_scoring_algorithm(request.employees)
 
-        # 2. Build the Prompt (The 3 Examples + Current Data)
+        # 2. Build the Prompt
         prompt = generate_architect_prompt(algo_results)
 
         # 3. Call WatsonX
         ai_report = call_watsonx(prompt)
 
         if not ai_report:
-            # Fallback if AI fails, return the data at least
             ai_report = "Error: AI generation failed. Please check API Key."
 
         return {
@@ -371,4 +312,4 @@ async def generate_strategy(request: RestructuringRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8010)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
