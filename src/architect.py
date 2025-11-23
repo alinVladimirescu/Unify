@@ -43,8 +43,8 @@ class EmployeeInput(BaseModel):
     # Allow both string and integer for talent
     talent: str | int = Field(..., description="Talent Score (High/Medium/Low or 1-5)")
     studies: str = Field(..., description="Education Level")
-    # This alias maps the JSON key "dupa salary" to the Python variable 'salary'
-    salary: float = Field(..., alias="dupa salary", description="Current Salary")
+    # This alias maps the JSON key "salary" to the Python variable 'salary'
+    salary: float = Field(..., alias="salary", description="Current Salary")
     job: str = Field(..., description="Job Title")
 
     class Config:

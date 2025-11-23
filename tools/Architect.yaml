@@ -55,15 +55,15 @@ paths:
                           - type: integer
                         description: "Talent assessment (High/Medium/Low or 1-5)"
                         example: 5
-                      studii:
+                      studies:
                         type: string
                         description: "Education level"
                         example: "PhD"
-                      dupa salary:
+                      salary:
                         type: number
                         description: "Current annual salary"
                         example: 180000
-                      jobul:
+                      job:
                         type: string
                         description: "Current Job Title"
                         example: "Senior Partner"
