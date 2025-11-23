@@ -6,7 +6,7 @@ info:
   version: "1.0.0"
 
 servers:
-  - url: https://folly-uninfusing-zaire.ngrok-free.dev 
+  - url: https://moodiest-uncontemptuously-cordell.ngrok-free.dev
 
 paths:
   /generate-strategy:
@@ -28,20 +28,20 @@ paths:
                   items:
                     type: object
                     required:
-                      - Name
+                      - name
                       - rating
                       - talent
                       - studies
                       - salary
                       - job
                     properties:
-                      Employee ID:
+                      employee_id:
                         oneOf:
                           - type: string
                           - type: integer
-                        description: "Employee ID (can be string or number)"
+                        description: "employee ID (can be string or number)"
                         example: 101
-                      Name:
+                      name:
                         type: string
                         example: "Alice Sterling"
                       rating:
