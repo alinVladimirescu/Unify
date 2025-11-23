@@ -1,0 +1,6 @@
+employee_id,employee_name,seniority_level,position,email
+EMP001,Sarah Johnson,Senior,Cyber security Architect,sarah.johnson@example.com
+EMP002,Michael Chen,Mid-Level,Network operations manager,michael.chen@example.com
+EMP003,Emily Rodriguez,Senior,Product Design and Marketing Intern,emily.rodriguez@example.com
+EMP004,James Williams,Junior,Javascript junior frontend developer,james.williams@example.com
+EMP005,Lisa Thompson,Senior,Convolutional neural networks developer,lisa.thompson@example.com

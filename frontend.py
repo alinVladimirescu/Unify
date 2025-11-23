@@ -2,40 +2,94 @@ import streamlit as st
 import requests
 import json
 import pandas as pd
+from dotenv import load_dotenv
+import os
 
-API_KEY = "GsMdcVD9KJ2RV-qUa6ppoOAv2NciHl9QiPy4KP5BL5U7"
-INSTANCE_URL = "https://api.au-syd.watson-orchestrate.cloud.ibm.com/instances/6555e6ec-c874-474a-8f7c-488623a1ce1c"
-SPECIFIC_AGENT_ID = "c8ad82b4-c8d6-4d91-80da-b10c1ac27b82"
+load_dotenv()
 
-st.set_page_config(page_title="Watsonx Orchestrate Chat", layout="centered")
-st.title("🤖 Orchestrate Agent + File Upload")
+API_KEY = os.getenv("API_KEY")
+INSTANCE_URL = os.getenv("INSTANCE_URL")
+SPECIFIC_AGENT_ID = os.getenv("AGENT_ID")
+
+st.set_page_config(page_title="Unify", layout="centered")
+st.title("Unify")
+st.markdown("### M&A Integration Orchestrator")
 
 with st.sidebar:
     
-    st.header("📄 Upload Document")
-    uploaded_file = st.file_uploader("Attach a file (Text, CSV, JSON)", type=["txt", "csv", "json"])
+    st.header("📄 Upload Documents")
+    uploaded_files = st.file_uploader(
+        "Attach files (Text, CSV, JSON)", 
+        type=["txt", "csv", "json"],
+        accept_multiple_files=True
+    )
     
-    file_content = ""
-    if uploaded_file is not None:
-        try:
-            if uploaded_file.type == "application/json":
-                data = json.load(uploaded_file)
-                file_content = json.dumps(data, indent=2)
-                st.success("JSON loaded successfully!")
-            elif uploaded_file.type == "text/csv":
-                df = pd.read_csv(uploaded_file)
-                file_content = df.to_string()
-                st.success("CSV loaded successfully!")
-            else:
-                stringio = uploaded_file.getvalue().decode("utf-8")
-                file_content = stringio
-                st.success("Text file loaded successfully!")
-            
-            with st.expander("Preview File Content"):
-                st.code(file_content[:500] + "..." if len(file_content) > 500 else file_content)
+    all_files_content = []
+    
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            try:
+                file_content = ""
                 
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
+                if uploaded_file.type == "application/json":
+                    data = json.load(uploaded_file)
+                    file_content = json.dumps(data, indent=2)
+                    st.success(f"✅ {uploaded_file.name} - JSON loaded!")
+                    
+                elif uploaded_file.type == "text/csv":
+                    df = pd.read_csv(uploaded_file)
+                    records = df.to_dict(orient='records')
+                    
+                    # Check if CSV contains P&L feature columns
+                    pl_columns = {'feature', 'revenue', 'cost', 'net_profit'}
+                    csv_columns = set(df.columns.str.lower())
+                    
+                    # Check if CSV contains employee-related columns
+                    employee_indicators = {'employee id', 'employee_id'}
+                    has_employee_field = bool(employee_indicators.intersection(csv_columns))
+                    
+                    if pl_columns.issubset(csv_columns):
+                        formatted_data = {
+                            "features": records
+                        }
+                        file_content = json.dumps(formatted_data, indent=2)
+                        print(formatted_data)
+                        st.success(f"✅ {uploaded_file.name} - P&L JSON format!")
+                        
+                    elif has_employee_field:
+                        formatted_data = {
+                            "employees": records
+                        }
+                        file_content = json.dumps(formatted_data, indent=2)
+                        print(formatted_data)
+                        st.success(f"✅ {uploaded_file.name} - Employee JSON format!")
+                        
+                    else:
+                        print(records)
+                        file_content = json.dumps(records, indent=2)
+                        st.success(f"✅ {uploaded_file.name} - JSON format!")
+                        
+                else:
+                    stringio = uploaded_file.getvalue().decode("utf-8")
+                    file_content = stringio
+                    st.success(f"✅ {uploaded_file.name} - Text file loaded!")
+                
+                all_files_content.append({
+                    "filename": uploaded_file.name,
+                    "content": file_content
+                })
+                
+            except Exception as e:
+                st.error(f"❌ Error reading {uploaded_file.name}: {e}")
+        
+        # Preview all uploaded files
+        if all_files_content:
+            with st.expander(f"Preview All Files ({len(all_files_content)} uploaded)"):
+                for file_data in all_files_content:
+                    st.write(f"**{file_data['filename']}:**")
+                    preview = file_data['content']
+                    st.code(preview[:300] + "..." if len(preview) > 300 else preview)
+                    st.divider()
 
 
 def get_iam_token(api_key):
@@ -206,7 +260,7 @@ def call_watsonx_orchestrate(messages):
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hello! Upload a file or ask me a question."}
+        {"role": "assistant", "content": "Hello! Upload files or ask me a question."}
     ]
 
 if "thread_id" not in st.session_state:
@@ -225,9 +279,15 @@ for message in st.session_state.messages:
 if prompt := st.chat_input("Type your message..."):
     
     final_prompt = prompt
-    if file_content:
-        final_prompt = f"Context from uploaded file:\n\n{file_content}\n\nUser Question:\n{prompt}"
-        st.toast("File content added to message!", icon="📎")
+    
+    # Combine all uploaded files into the prompt (content only, no filenames)
+    if all_files_content:
+        files_text = "\n\n".join([
+            file_data['content']
+            for file_data in all_files_content
+        ])
+        final_prompt = f"Context from uploaded files:\n\n{files_text}\n\nUser Question:\n{prompt}"
+        st.toast(f"{len(all_files_content)} file(s) added to message!", icon="📎")
 
     st.session_state.messages.append({"role": "user", "content": prompt})
     
