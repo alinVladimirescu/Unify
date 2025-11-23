@@ -11,6 +11,27 @@ import re
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def root():
+    return {
+        "service": "Unify - M&A Integration Platform",
+        "status": "active",
+        "mounted_services": {
+            "architect": "/architect",
+            "auditor": "/auditor",
+            "analyst": "/analyst",
+            "curator": "/curator"
+        }
+    }
+
 architect = FastAPI(
     title="HR Strategic Restructuring Agent",
     version="3.0.0",
@@ -977,11 +998,11 @@ async def root():
         "status": "healthy"
     }
 
-app.mount("/architect", architect)
-app.mount("/auditor", auditor)
-app.mount("/analyst", analyst)
-app.mount("/curator", curator)
+app.mount("/generate-strategy", architect)
+app.mount("/harmonize-tech-stack", auditor)
+app.mount("/analyze-pnl", analyst)
+app.mount("/process-employees", curator)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8012)
