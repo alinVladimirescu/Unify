@@ -7,7 +7,7 @@ info:
     detects redundancies, and calculates cost savings for migration.
   version: 1.0.0
 servers:
-  - url: https://folly-uninfusing-zaire.ngrok-free.dev
+  - url: https://unctuousnessly-superwise-janelle.ngrok-free.dev
     description: Local Development Server
 
 paths:
