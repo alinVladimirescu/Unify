@@ -373,7 +373,7 @@ async def generate_strategy(request: RestructuringRequest):
         print(f"Error processing request: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-techstack = FastAPI()
+auditor = FastAPI()
 
 SEARCH_API_KEY = os.environ.get("SEARCH_API_KEY")
 SERPAPI_URL = "https://serpapi.com/search"
@@ -532,7 +532,7 @@ def fuzzy_find_tool(target_name: str, tool_map: dict) -> str:
             return name
     return None
 
-@techstack.post("/harmonize-tech-stack")
+@auditor.post("/harmonize-tech-stack")
 async def harmonize_tech_stack(request: HarmonizationRequest):
     all_invoices = request.company_a_invoices + request.company_b_invoices
     tool_map = {inv.service_name: inv for inv in all_invoices}
@@ -590,11 +590,11 @@ async def harmonize_tech_stack(request: HarmonizationRequest):
 
     return {"status": "success", "conflicts_detected": len(conflicts), "recommendations": recommendations}
 
-@techstack.get("/")
+@auditor.get("/")
 async def root():
     return {"service": "Tech Stack Harmonization Agent", "status": "active", "version": "3.0.0"}
 
-profitloss = FastAPI()
+analyst = FastAPI()
 
 class FeatureData(BaseModel):
     feature: str
@@ -698,7 +698,7 @@ Return ONLY the JSON. No markdown formatting.
 Your JSON Response:"""
 
 
-@profitloss.post("/analyze-pnl", response_model=PnLAnalysisResponse)
+@analyst.post("/analyze-pnl", response_model=PnLAnalysisResponse)
 async def analyze_pnl(request: PnLRequest):
     try:
         if not request.features or len(request.features) == 0:
@@ -753,7 +753,7 @@ async def analyze_pnl(request: PnLRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@profitloss.get("/")
+@analyst.get("/")
 async def root():
     return {
         "service": "P&L Strategic Advisor Agent",
@@ -762,7 +762,7 @@ async def root():
         "endpoint": "/analyze-pnl"
     }
 
-development = FastAPI()
+curator = FastAPI()
 
 class Employee(BaseModel):
     employee_id: str
@@ -935,7 +935,7 @@ def fallback_courses(skills: List[str]) -> List[dict]:
     recommendations.sort(key=lambda x: (0 if x["priority"]=="high" else 1, -len(x["matched_skills"])))
     return recommendations[:5]
 
-@development.post("/process-employees")
+@curator.post("/process-employees")
 async def process_employees(request: ProcessEmployeesRequest):
     try:
         results = []
@@ -957,7 +957,7 @@ async def process_employees(request: ProcessEmployeesRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@development.post("/predict-skills")
+@curator.post("/predict-skills")
 async def predict_skills(request: SkillPredictionRequest):
     skills = predict_skills_with_ai(request.position, request.seniority_level)
     return {
@@ -968,7 +968,7 @@ async def predict_skills(request: SkillPredictionRequest):
         "prediction_method": "WatsonX AI (Cloud API)"
     }
 
-@development.get("/")
+@curator.get("/")
 async def root():
     return {
         "service": "M&A Employee Onboarding System",
@@ -978,9 +978,9 @@ async def root():
     }
 
 app.mount("/architect", architect)
-app.mount("/techstack", techstack)
-app.mount("/profitloss", profitloss)
-app.mount("/development", development)
+app.mount("/auditor", auditor)
+app.mount("/analyst", analyst)
+app.mount("/curator", curator)
 
 if __name__ == "__main__":
     import uvicorn
