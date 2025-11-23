@@ -6,7 +6,7 @@ info:
   version: "5.0.0"
 
 servers:
-  - url: https://unctuousnessly-superwise-janelle.ngrok-free.dev/analyze-pnl
+  - url: https://unctuousnessly-superwise-janelle.ngrok-free.dev
 
 paths:
   /analyze-pnl:
