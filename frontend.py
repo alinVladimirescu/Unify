@@ -2,91 +2,64 @@ import streamlit as st
 import requests
 import json
 import pandas as pd
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
+API_KEY = "bpjranjXjcn79Qo0-uYGl83DF0KusKn86hj0IFGmCk4l"  
+INSTANCE_URL = "https://api.eu-de.watson-orchestrate.cloud.ibm.com/instances/2c7d8cd6-2c98-4a51-ba84-4fbb50983077"
+AGENT_ID = "dad034ac-bf77-450b-82da-591358eabe94"
+SPECIFIC_AGENT_ID = "dad034ac-bf77-450b-82da-591358eabe94"
 
-API_KEY = os.getenv("API_KEY")
-INSTANCE_URL = os.getenv("INSTANCE_URL")
-SPECIFIC_AGENT_ID = os.getenv("AGENT_ID")
-
-st.set_page_config(page_title="Unify", layout="centered")
-st.title("Unify")
-st.markdown("### M&A Integration Orchestrator")
+st.set_page_config(page_title="Watsonx Orchestrate Chat", layout="centered")
+st.title("UNIFY - Watsonx Orchestrate Chatbot ")
 
 with st.sidebar:
     
-    st.header("📄 Upload Documents")
-    uploaded_files = st.file_uploader(
-        "Attach files (Text, CSV, JSON)", 
-        type=["txt", "csv", "json"],
-        accept_multiple_files=True
-    )
+    st.header("📄 Upload Document")
+    uploaded_file = st.file_uploader("Attach a file (Text, CSV, JSON)", type=["txt", "csv", "json"])
     
-    all_files_content = []
-    
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            try:
-                file_content = ""
+    file_content = ""
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.type == "application/json":
+                data = json.load(uploaded_file)
+                file_content = json.dumps(data, indent=2)
+                st.success("JSON loaded successfully!")
+            elif uploaded_file.type == "text/csv":
+                df = pd.read_csv(uploaded_file)
+                # Convert CSV to the specific JSON format
+                records = df.to_dict(orient='records')
                 
-                if uploaded_file.type == "application/json":
-                    data = json.load(uploaded_file)
-                    file_content = json.dumps(data, indent=2)
-                    st.success(f"✅ {uploaded_file.name} - JSON loaded!")
-                    
-                elif uploaded_file.type == "text/csv":
-                    df = pd.read_csv(uploaded_file)
-                    records = df.to_dict(orient='records')
-                    
-                    # Check if CSV contains P&L feature columns
-                    pl_columns = {'feature', 'revenue', 'cost', 'net_profit'}
-                    csv_columns = set(df.columns.str.lower())
-                    
-                    # Check if CSV contains employee-related columns
-                    employee_indicators = {'employee id', 'employee_id'}
-                    has_employee_field = bool(employee_indicators.intersection(csv_columns))
-                    
-                    if pl_columns.issubset(csv_columns):
-                        formatted_data = {
-                            "features": records
-                        }
-                        file_content = json.dumps(formatted_data, indent=2)
-                        st.success(f"✅ {uploaded_file.name} - P&L JSON format!")
-                        
-                    elif has_employee_field:
-                        formatted_data = {
-                            "employees": records
-                        }
-                        file_content = json.dumps(formatted_data, indent=2)
-                        st.success(f"✅ {uploaded_file.name} - Employee JSON format!")
-                        
-                    else:
-                        file_content = json.dumps(records, indent=2)
-                        st.success(f"✅ {uploaded_file.name} - JSON format!")
-                        
+                # Check if CSV contains P&L feature columns
+                pl_columns = {'feature', 'revenue', 'cost', 'net_profit'}
+                csv_columns = set(df.columns.str.lower())
+                
+                # Check if CSV contains employee-related columns
+                employee_indicators = {'Employee ID', 'employee_id'}
+                has_employee_field = bool(employee_indicators.intersection(csv_columns))
+                
+                if pl_columns.issubset(csv_columns):
+                    # Format as P&L data with "features" wrapper
+                    formatted_data = {
+                        "features": records
+                    }
+                    file_content = json.dumps(formatted_data, indent=2)
+                    st.success("CSV loaded and converted to P&L JSON format!")
+                elif has_employee_field:
+                    # Format as employee data with "employees" wrapper
+                    formatted_data = {
+                        "employees": records
+                    }
+                    file_content = json.dumps(formatted_data, indent=2)
+                    st.success("CSV loaded and converted to Employee JSON format!")
                 else:
-                    stringio = uploaded_file.getvalue().decode("utf-8")
-                    file_content = stringio
-                    st.success(f"✅ {uploaded_file.name} - Text file loaded!")
+                    # Keep as plain array of records for other CSVs
+                    file_content = json.dumps(records, indent=2)
+                    st.success("CSV loaded and converted to JSON!")
+            
+            with st.expander("Preview File Content"):
+                st.code(file_content[:500] + "..." if len(file_content) > 500 else file_content)
                 
-                all_files_content.append({
-                    "filename": uploaded_file.name,
-                    "content": file_content
-                })
-                
-            except Exception as e:
-                st.error(f"❌ Error reading {uploaded_file.name}: {e}")
-        
-        # Preview all uploaded files
-        if all_files_content:
-            with st.expander(f"Preview All Files ({len(all_files_content)} uploaded)"):
-                for file_data in all_files_content:
-                    st.write(f"**{file_data['filename']}:**")
-                    preview = file_data['content']
-                    st.code(preview[:300] + "..." if len(preview) > 300 else preview)
-                    st.divider()
+        except Exception as e:
+            st.error(f"Error reading file: {e}")
 
 
 def get_iam_token(api_key):
@@ -96,14 +69,28 @@ def get_iam_token(api_key):
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json"
     }
-    data = f"grant_type=urn:ibm:params:oauth:grant-type:apikey&apikey={api_key}"
+    # Use proper form encoding
+    data = {
+        "grant_type": "urn:ibm:params:oauth:grant-type:apikey",
+        "apikey": api_key
+    }
     
     try:
         response = requests.post(url, headers=headers, data=data, timeout=10)
+        
+        # Debug logging
+        if response.status_code != 200:
+            st.error(f"❌ IAM Token Error {response.status_code}")
+            st.error(f"Response: {response.text}")
+            
         response.raise_for_status()
         return response.json()["access_token"]
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         st.error(f"❌ Authentication failed: {e}")
+        st.error(f"Please verify your API key is valid")
+        return None
+    except Exception as e:
+        st.error(f"❌ Unexpected error: {e}")
         return None
 
 
@@ -158,7 +145,12 @@ def get_or_create_thread(bearer_token, agent_id):
     
     try:
         response = requests.post(threads_url, headers=headers, json=payload, timeout=10)
-        response.raise_for_status()
+        
+        if response.status_code not in [200, 201]:
+            st.warning(f"Thread creation returned status {response.status_code}")
+            st.info("Continuing without thread_id...")
+            return None
+            
         thread_data = response.json()
         
         thread_id = thread_data.get("id") or thread_data.get("thread_id")
@@ -170,18 +162,21 @@ def get_or_create_thread(bearer_token, agent_id):
         else:
             return None
     except Exception as e:
+        st.warning(f"Could not create thread: {e}")
         return None
 
 
 def call_orchestrate_run(bearer_token, agent_id, thread_id, user_message):
     """Step 3: Call the orchestrate run endpoint"""
     url = f"{INSTANCE_URL}/v1/orchestrate/runs?stream=true&stream_timeout=120000&multiple_content=true"
+    
+    # FIXED: Removed IAM-API_KEY header - it conflicts with Bearer token
     headers = {
         "Authorization": f"Bearer {bearer_token}",
-        "IAM-API_KEY": API_KEY,
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
+    
     payload = {
         "message": {
             "role": "user",
@@ -198,8 +193,11 @@ def call_orchestrate_run(bearer_token, agent_id, thread_id, user_message):
         with st.spinner("Waiting for response..."):
             response = requests.post(url, headers=headers, json=payload, timeout=120, stream=True)
             
-            if response.status_code != 200 and response.status_code != 201:
-                return f"❌ Error {response.status_code}: {response.text}"
+            if response.status_code not in [200, 201]:
+                error_detail = response.text
+                st.error(f"❌ Orchestrate API Error {response.status_code}")
+                st.error(f"Response: {error_detail}")
+                return f"❌ Error {response.status_code}: {error_detail}"
             
             # Handle streaming response - collect text from delta events
             full_response = ""
@@ -229,8 +227,13 @@ def call_orchestrate_run(bearer_token, agent_id, thread_id, user_message):
             else:
                 return "❌ No response content received"
             
+    except requests.exceptions.Timeout:
+        return "❌ Request timed out. Please try again."
+    except requests.exceptions.RequestException as e:
+        return f"❌ Network error: {e}"
     except Exception as e:
         return f"❌ Error calling orchestrate: {e}"
+
 
 def call_watsonx_orchestrate(messages):
     """Main function that orchestrates all three steps"""
@@ -242,7 +245,7 @@ def call_watsonx_orchestrate(messages):
     # Step 1: Get Bearer token
     bearer_token = get_iam_token(API_KEY)
     if not bearer_token:
-        return "Error: Could not generate bearer token."
+        return "Error: Could not generate bearer token. Please check your API key."
     
     # Step 2: Get Agent ID and Thread ID
     agent_id, thread_id = get_agent_and_thread(bearer_token)
@@ -257,7 +260,7 @@ def call_watsonx_orchestrate(messages):
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hello! Upload files or ask me a question."}
+        {"role": "assistant", "content": "Hello! Upload a file or ask me a question."}
     ]
 
 if "thread_id" not in st.session_state:
@@ -276,15 +279,9 @@ for message in st.session_state.messages:
 if prompt := st.chat_input("Type your message..."):
     
     final_prompt = prompt
-    
-    # Combine all uploaded files into the prompt (content only, no filenames)
-    if all_files_content:
-        files_text = "\n\n".join([
-            file_data['content']
-            for file_data in all_files_content
-        ])
-        final_prompt = f"Context from uploaded files:\n\n{files_text}\n\nUser Question:\n{prompt}"
-        st.toast(f"{len(all_files_content)} file(s) added to message!", icon="📎")
+    if file_content:
+        final_prompt = f"Context from uploaded file:\n\n{file_content}\n\nUser Question:\n{prompt}"
+        st.toast("File content added to message!", icon="📎")
 
     st.session_state.messages.append({"role": "user", "content": prompt})
     
