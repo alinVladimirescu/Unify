@@ -1,0 +1,123 @@
+openapi: 3.0.0
+info:
+  title: M&A Tech Stack Harmonizer API
+  description: >-
+    An AI-powered API that analyzes software invoice lists from two merging companies. 
+    It categorizes tools (e.g., CRM, Chat), searches the web for real-time pricing comparisons, 
+    detects redundancies, and calculates cost savings for migration.
+  version: 1.0.0
+servers:
+  - url: https://folly-uninfusing-zaire.ngrok-free.dev
+    description: Local Development Server
+
+paths:
+  /harmonize-tech-stack:
+    post:
+      operationId: harmonizeTechStack
+      summary: Analyze software overlap and recommend cost savings
+      description: >-
+        Takes two lists of software subscriptions (Company A and Company B), 
+        identifies functional overlaps using AI categorization, compares pricing 
+        against live web search data, and returns a migration roadmap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HarmonizationRequest'
+      responses:
+        '200':
+          description: Successful analysis with cost-saving recommendations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HarmonizationResponse'
+        '500':
+          description: Internal Server Error (AI or Search failure)
+
+components:
+  schemas:
+    # --- Input Objects ---
+    InvoiceItem:
+      type: object
+      required:
+        - service_name
+        - internal_cost
+      properties:
+        service_name:
+          type: string
+          description: The name of the software tool (e.g., 'Slack', 'Jira')
+          example: "Slack Business Plus"
+        internal_cost:
+          type: number
+          format: float
+          description: The current monthly cost per user paid by the company
+          example: 15.00
+        description:
+          type: string
+          description: Optional description of what the tool is used for
+          example: "Real-time messaging for engineering"
+          default: "Software Subscription"
+
+    HarmonizationRequest:
+      type: object
+      required:
+        - company_a_invoices
+        - company_b_invoices
+      properties:
+        company_a_invoices:
+          type: array
+          description: List of software tools used by the first company (usually the Acquirer)
+          items:
+            $ref: '#/components/schemas/InvoiceItem'
+        company_b_invoices:
+          type: array
+          description: List of software tools used by the second company (usually the Target)
+          items:
+            $ref: '#/components/schemas/InvoiceItem'
+
+    # --- Output Objects ---
+    ActionRecommendation:
+      type: object
+      properties:
+        category:
+          type: string
+          description: The AI-determined category (e.g., 'Communication', 'Project Management')
+          example: "Communication"
+        action:
+          type: string
+          enum: [MIGRATE, KEEP, RETIRE]
+          description: The recommended action to take
+          example: "MIGRATE"
+        tool_to_keep:
+          type: string
+          description: The winner of the comparison
+          example: "Microsoft Teams"
+        tool_to_drop:
+          type: string
+          description: The tool suggested for cancellation
+          example: "Slack"
+        estimated_annual_savings:
+          type: number
+          format: float
+          description: Projected savings based on 100 users/year
+          example: 10800.00
+        reasoning:
+          type: string
+          description: Explanation based on price comparison and feature overlap
+          example: "Web Search confirms Microsoft Teams ($6.00) is cheaper than Slack ($15.00)."
+
+    HarmonizationResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        total_analyzed:
+          type: integer
+          description: Total number of tools processed
+          example: 5
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionRecommendation'

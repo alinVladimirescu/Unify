@@ -1,33 +1,51 @@
 from fastapi import FastAPI, HTTPException, Body
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from dotenv import load_dotenv
+import os
 import json
 import requests
 import uvicorn
 
 app = FastAPI(
     title="HR Strategic Restructuring Agent",
-    version="2.0.0",
+    version="3.0.0",
     description="Calculates weighted scores and generates strategic reports using 3-shot learning."
+)
+load_dotenv()
+
+# Add CORS middleware to handle cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # --- CONFIGURATION ---
-WATSONX_API_KEY = "API_KEY_PLACEHOLDER"
-WATSONX_PROJECT_ID = "PROJECT_ID_PLACEHOLDER"
-WATSONX_URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
-MODEL_ID = "ibm/granite-3-8b-instruct"
+# IMPORTANT: Replace these with your actual IBM Cloud Credentials
+
+WATSONX_API_KEY = os.environ.get("WATSONX_API_KEY")
+WATSONX_PROJECT_ID = os.environ.get("WATSONX_PROJECT_ID")
+WATSONX_URL = os.environ.get("WATSONX_URL")
+MODEL_ID = os.environ.get("MODEL_ID")
 
 # --- DATA MODELS ---
 
 class EmployeeInput(BaseModel):
     # Using aliases allows the API to accept your CSV headers directly
-    employee_id: Optional[str] = Field(None, alias="Employee ID")
+    # Allow both string and integer for Employee ID
+    employee_id: Optional[str | int] = Field(None, alias="Employee ID")
     name: str = Field(..., alias="Name")
     rating: float = Field(..., description="Performance Rating 0.0-5.0")
-    talent: str = Field(..., description="Talent Score (High/Medium/Low or 1-5)")
-    studii: str = Field(..., description="Education Level")
-    dupa_salary: float = Field(..., alias="dupa salary", description="Current Salary")
-    jobul: str = Field(..., description="Job Title")
+    # Allow both string and integer for talent
+    talent: str | int = Field(..., description="Talent Score (High/Medium/Low or 1-5)")
+    studies: str = Field(..., description="Education Level")
+    # This alias maps the JSON key "dupa salary" to the Python variable 'salary'
+    salary: float = Field(..., alias="dupa salary", description="Current Salary")
+    job: str = Field(..., description="Job Title")
 
     class Config:
         populate_by_name = True
@@ -49,7 +67,8 @@ def get_watsonx_token():
     data = {"grant_type": "urn:ibm:params:oauth:grant-type:apikey", "apikey": WATSONX_API_KEY}
     response = requests.post(token_url, headers=headers, data=data, timeout=10)
     if response.status_code != 200:
-        raise Exception(f"Failed to get token: {response.text}")
+        print(f"Auth Error: {response.text}")
+        raise Exception("Failed to authenticate with IBM Cloud")
     return response.json()["access_token"]
 
 def call_watsonx(prompt: str, max_tokens: int = 1500) -> Optional[str]:
@@ -78,7 +97,7 @@ def call_watsonx(prompt: str, max_tokens: int = 1500) -> Optional[str]:
             result = response.json()
             return result["results"][0]["generated_text"].strip()
         else:
-            print(f"WatsonX Error: {response.text}")
+            print(f"WatsonX API Error ({response.status_code}): {response.text}")
             return None
     except Exception as e:
         print(f"Connection Error: {e}")
@@ -119,7 +138,7 @@ def execute_scoring_algorithm(employees: List[EmployeeInput]) -> Dict[str, Any]:
             else:
                 talent_score = 1 # Default
 
-            edu_score = education_map.get(emp.studii, 1)
+            edu_score = education_map.get(emp.studies, 1)
 
             # Weighted Formula
             final_score = (emp.rating * WEIGHT_PERFORMANCE) + \
@@ -128,8 +147,8 @@ def execute_scoring_algorithm(employees: List[EmployeeInput]) -> Dict[str, Any]:
 
             processed_staff.append({
                 "name": emp.name,
-                "role": emp.jobul,
-                "salary": emp.dupa_salary,
+                "role": emp.job,
+                "salary": emp.salary,
                 "final_score": round(final_score, 2),
                 "raw_rating": emp.rating
             })
@@ -178,7 +197,7 @@ def execute_scoring_algorithm(employees: List[EmployeeInput]) -> Dict[str, Any]:
         "risk_flags": flagged_risks
     }
 
-# --- PROMPT GENERATOR WITH YOUR EXAMPLES ---
+# --- PROMPT GENERATOR WITH 3-SHOT EXAMPLES ---
 
 def generate_architect_prompt(current_data: Dict) -> str:
     # We define the examples as a constant string block
@@ -311,6 +330,16 @@ Output:
 
 # --- ENDPOINTS ---
 
+@app.get("/")
+async def root():
+    return {
+        "message": "HR Strategic Restructuring Agent API",
+        "version": "3.0.0",
+        "endpoints": {
+            "/generate-strategy": "POST - Generate restructuring report"
+        }
+    }
+
 @app.post("/generate-strategy", response_model=RestructuringResponse)
 async def generate_strategy(request: RestructuringRequest):
     try:
@@ -328,7 +357,7 @@ async def generate_strategy(request: RestructuringRequest):
 
         if not ai_report:
             # Fallback if AI fails, return the data at least
-            ai_report = "Error: AI generation failed, but calculations are complete."
+            ai_report = "Error: AI generation failed. Please check API Key."
 
         return {
             "status": "success",
@@ -342,4 +371,4 @@ async def generate_strategy(request: RestructuringRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

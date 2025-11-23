@@ -5,7 +5,13 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 
+<<<<<<< HEAD:frontend.py
 load_dotenv()
+=======
+API_KEY = os.environ.get("API_KEY")
+SPECIFIC_AGENT_ID = os.environ.get("SPECIFIC_AGENT_ID")
+INSTANCE_URL = os.environ.get("INSTANCE_URL")
+>>>>>>> origin/main:src/frontend.py
 
 API_KEY = os.getenv("API_KEY")
 INSTANCE_URL = os.getenv("INSTANCE_URL")
@@ -53,6 +59,7 @@ with st.sidebar:
                             "features": records
                         }
                         file_content = json.dumps(formatted_data, indent=2)
+                        print(formatted_data)
                         st.success(f"✅ {uploaded_file.name} - P&L JSON format!")
                         
                     elif has_employee_field:
@@ -60,9 +67,11 @@ with st.sidebar:
                             "employees": records
                         }
                         file_content = json.dumps(formatted_data, indent=2)
+                        print(formatted_data)
                         st.success(f"✅ {uploaded_file.name} - Employee JSON format!")
                         
                     else:
+                        print(records)
                         file_content = json.dumps(records, indent=2)
                         st.success(f"✅ {uploaded_file.name} - JSON format!")
                         
