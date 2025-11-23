@@ -3,13 +3,16 @@ from pydantic import BaseModel
 from typing import List, Optional
 import json
 import requests
+from dotenv import load_dotenv
+import os
 
 app = FastAPI()
+load_dotenv()
 
-WATSONX_API_KEY = "API_KEY_PLACEHOLDER"
-WATSONX_PROJECT_ID = "PROJECT_ID_PLACEHOLDER"
-WATSONX_URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
-MODEL_ID = "ibm/granite-3-8b-instruct"
+WATSONX_API_KEY = os.environ.get("WATSONX_API_KEY")
+WATSONX_PROJECT_ID = os.environ.get("WATSONX_PROJECT_ID")
+WATSONX_URL = os.environ.get("WATSONX_URL")
+MODEL_ID = os.environ.get("MODEL_ID")
 
 
 class FeatureData(BaseModel):

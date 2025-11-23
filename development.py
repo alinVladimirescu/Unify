@@ -1,16 +1,18 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
+from dotenv import load_dotenv
 import json
 import requests
 import os
 
 app = FastAPI()
+load_dotenv()
 
-WATSONX_API_KEY = "api-key-placeholder"
-WATSONX_PROJECT_ID = "project-id-placeholder"
-WATSONX_URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
-
+WATSONX_API_KEY = os.environ.get("WATSONX_API_KEY")
+WATSONX_PROJECT_ID = os.environ.get("WATSONX_PROJECT_ID")
+WATSONX_URL = os.environ.get("WATSONX_URL")
+MODEL_ID = os.environ.get("MODEL_ID")
 
 class Employee(BaseModel):
     employee_id: str
@@ -26,7 +28,7 @@ class SkillPredictionRequest(BaseModel):
     position: str
     seniority_level: str
 
-COURSE_CATALOG_FILE = "course_catalog.json"
+COURSE_CATALOG_FILE = os.path.join("Dev Extra", "course_catalog.json")
 
 def load_course_catalog():
     try:
@@ -55,7 +57,7 @@ def call_watsonx(prompt: str, max_tokens: int = 512) -> str:
         token = get_watsonx_token()
         headers = {"Accept": "application/json", "Content-Type": "application/json", "Authorization": f"Bearer {token}"}
         body = {
-            "model_id": "ibm/granite-3-8b-instruct",
+            "model_id": MODEL_ID,
             "input": prompt,
             "parameters": {"decoding_method": "greedy", "max_new_tokens": max_tokens, "temperature": 0.3},
             "project_id": WATSONX_PROJECT_ID

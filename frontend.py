@@ -2,10 +2,12 @@ import streamlit as st
 import requests
 import json
 import pandas as pd
+from dotenv import load_dotenv
+import os
 
-API_KEY = "GsMdcVD9KJ2RV-qUa6ppoOAv2NciHl9QiPy4KP5BL5U7"
-INSTANCE_URL = "https://api.au-syd.watson-orchestrate.cloud.ibm.com/instances/6555e6ec-c874-474a-8f7c-488623a1ce1c"
-SPECIFIC_AGENT_ID = "c8ad82b4-c8d6-4d91-80da-b10c1ac27b82"
+API_KEY = os.environ.get("API_KEY")
+SPECIFIC_AGENT_ID = os.environ.get("SPECIFIC_AGENT_ID")
+INSTANCE_URL = os.environ.get("INSTANCE_URL")
 
 st.set_page_config(page_title="Watsonx Orchestrate Chat", layout="centered")
 st.title("🤖 Orchestrate Agent + File Upload")

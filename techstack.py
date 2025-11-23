@@ -4,13 +4,18 @@ from typing import List, Optional
 import json
 import requests
 import re
+from dotenv import load_dotenv
+import os
 
 app = FastAPI()
+load_dotenv()
 
-WATSONX_API_KEY = "api-key-placeholder"
-WATSONX_PROJECT_ID = "6fd95f57-1729-42ef-acd9-8021d6f25da0"
-WATSONX_URL = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
-SEARCH_API_KEY = "api-key-placeholder"
+WATSONX_API_KEY = os.environ.get("WATSONX_API_KEY")
+WATSONX_PROJECT_ID = os.environ.get("WATSONX_PROJECT_ID")
+WATSONX_URL = os.environ.get("WATSONX_URL")
+MODEL_ID = os.environ.get("MODEL_ID")
+
+SEARCH_API_KEY = os.environ.get("SEARCH_API_KEY")
 SERPAPI_URL = "https://serpapi.com/search"
 
 class InvoiceItem(BaseModel):
@@ -41,7 +46,7 @@ def call_watsonx(prompt: str, max_tokens: int = 500) -> str:
     
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "application/json"}
     body = {
-        "model_id": "ibm/granite-3-8b-instruct",
+        "model_id": MODEL_ID,
         "input": prompt,
         "parameters": {"decoding_method": "greedy", "max_new_tokens": max_tokens, "repetition_penalty": 1.1},
         "project_id": WATSONX_PROJECT_ID
