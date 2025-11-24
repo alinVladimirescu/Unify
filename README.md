@@ -26,12 +26,12 @@ Built for the IBM Hackathon, this solution demonstrates advanced agentic AI work
     └────┬────┘   └───┬────┘  └────┬─────┘  └─────┬──────┘
          │            │            │              │
          └────────────┴────────────┴──────────────┘
-                     │
-              ┌──────▼──────┐
-              │ watsonx.ai  │
-              │  Granite 3  │
-              │   8B Model  │
-              └─────────────┘
+                      │
+               ┌──────▼──────┐
+               │ watsonx.ai  │
+               │  Granite 3  │
+               │   8B Model  │
+               └─────────────┘
 ```
 
 ## ✨ Key Features
