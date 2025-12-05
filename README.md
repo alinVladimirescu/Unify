@@ -471,7 +471,7 @@ Contributions are welcome! Please:
 
 ## 📄 License
 
-This project was created for the IBM Hackathon 2024.
+This project was created for the IBM Hackathon 2025.
 
 ## 👥 Team
 
@@ -479,7 +479,7 @@ This project was created for the IBM Hackathon 2024.
 - [Matej Pechoucek](https://github.com/MatejPechoucek)
 - [Javier Borrajo](https://github.com/jborrajo21)
 
-## 🏆 IBM Hackathon 2024
+## 🏆 IBM Hackathon 2025
 
 This platform demonstrates:
 - Advanced agentic AI workflows
